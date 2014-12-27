@@ -4,6 +4,7 @@ from tornado import websocket
 from tornado import web, httpserver, ioloop
 from sephiroth import PIPES, MSGLEN
 
+
 WS_PORT= 7771
 log    = logging.getLogger('sephiroth_ws')
 
