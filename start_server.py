@@ -1,30 +1,34 @@
 import sephiroth
+import sephiroth_ws
+import settings
 import threading
 import os
 import socket
 import sys
+import argparse
 
-
-def sample_pipe():
-    pin, pout = os.pipe()
-    sephiroth.PIPES['127.0.0.1'] = [pout]
-    while 1:
-        sys.stdout.flush() 
-        msg = os.read(pin, sephiroth.MSGLEN)
-        print 'Sample pipe msg: %s' % msg
-
-
-t1 = threading.Thread(target=sample_pipe)
-t1.start()
 
 def handle_fn(ip, msg):
-    print 'Mensaje recibido de %s: %s' % (ip, msg)
+    pass #print 'Mensaje recibido de %s: %s' % (ip, msg)
 
 if __name__ == '__main__':
+    parser = argparse.ArgumentParser()
+    parser.add_argument('-o', '--host', help='host name or ip address')
+    parser.add_argument('-p', '--port', help='port number', type=int)
+
+    args = parser.parse_args()
     try:
-        s = sephiroth.Server(handle_fn)
+        s = sephiroth.Server(handle_fn, host=args.host, port=args.port)
+        tsephiroth   = threading.Thread(target=s.serve_forever)
+        tsephiroth.start()
+        
+       # tsephirothws = threading.Thread(target=sephiroth_ws.ws_start)
+       # tsephirothws.start()
+        sephiroth_ws.ws_start()
+        
         print 'Sephiroth awake..'
-        s.serve_forever()
+        while 1:
+            pass
     except KeyboardInterrupt:
         print '\nSephiroth fainted..'
         os._exit(0)

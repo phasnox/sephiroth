@@ -23,12 +23,8 @@
     <![endif]-->
 
     <div class="hero-unit">
-      <h1>'Allo, 'Allo!</h1>
-      <p>You now have</p>
-      <ul>
-        <li>HTML5 Boilerplate</li>
-        <li>Sass</li>
-      </ul>
+      <h1>EKG</h1>
+      <canvas id="ekg" width="500" height="200"></canvas>
     </div>
 
     <!-- Google Analytics: change UA-XXXXX-X to be your site's ID. -->
@@ -50,5 +46,12 @@
         <!-- build:js scripts/main.js -->
         <script src="scripts/main.js"></script>
         <!-- endbuild -->
+    <script src="scripts/smoothie.js"></script>
+    <script>
+      App.chart = new SmoothieChart({maxValue:1, minValue:-1, millisPerPixel:10});
+      App.signal = new TimeSeries();
+      App.chart.addTimeSeries(App.signal, {lineWidth:2,strokeStyle:'#00ff00'});
+      App.ws = App.get_ws(App.start_monitor);
+    </script>
 </body>
 </html>
