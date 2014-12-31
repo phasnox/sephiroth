@@ -1,8 +1,9 @@
 import threading
 import os
+import sephiroth
+import logging
 from tornado import websocket
 from tornado import web, httpserver, ioloop
-from sephiroth import PIPES, MSGLEN
 
 
 WS_PORT= 7771
@@ -13,43 +14,45 @@ class SephirothWebSocket(websocket.WebSocketHandler):
 
     def __init__(self, application, request, **kwargs):
         super(SephirothWebSocket, self).__init__(application, request, **kwargs)
-        self.is_open      = False
+        self.is_open = False
 
     def open(self):
         self.is_open = True
-        log.info('Wound opened...')
+        log.info('Wound open...')
 
     def on_message(self, message):
         def handle_fn(msg):
-            ip_address  = msg
-            pin, pout   = os.pipe()
-            pipe = PIPES.get(ip_address, None)
-            if pipe is not None:
-                pipe.append(pout)
-            else:
+            id_client = msg
+            try:
+                pin, pout = os.pipe()
+                sephiroth.add_pipe(id_client, pout)
+            except sephiroth.ClientNotFound:
                 self.close()
+                log.warn('Client %s is not connected' % id_client)
                 return
+                
             while 1:
                 if not self.is_open: break
-                data = os.read(pin, MSGLEN)
+                data = os.read(pin, sephiroth.MSGLEN)
                 try:
-                    print 'WS write: %s' % data
+                    log.info('WS write: %s' % data)
                     self.write_message(data)
                 except websocket.WebSocketClosedError:
                     log.error('WS Closed error')
                     break
-            PIPES[ip_address].remove(pout)
+            # TODO Look for edge cases where this line may not be executed
+            # This could be a source of a memory leak
+            sephiroth.remove_pipe(id_client, pout)
             self.close()
         if message == 'stop':
-            self.is_open = false
+            self.is_open = False
         else:
             t = threading.Thread(target=handle_fn, args=(message, ))
             t.start()
 
     def on_close(self):
         self.is_open = False
-        print 'Closing..'
-        log.info('Wound closed...')
+        log.info('Closing..')
 
 
 def ws_start():

@@ -3,63 +3,36 @@ import threading
 import SocketServer
 import os
 import logging
+from collections import deque
 
 MSGLEN          = 22
 DEFAULT_PORT    = 7777
 MAX_CONNECTIONS = 1000
-CLIENT_LIST     = []
+CLIENT_LIST     = deque()
 PIPES           = {}
-CLIENT_PREFIX   = ''
-
+ID_CLIENT_LENGTH= 17 # MAC address length
 log = logging.getLogger('sephiroth')
-
-
-def _get_client_id(request_handler):
-    return request_handler.client_address[0]
-
-def get_handler(handle_fn, msg_len, get_client_id):
-    
-    class DRH(SocketServer.BaseRequestHandler):
-        def handle(self):
-            client_id = get_client_id(self)
-            if client_id in CLIENT_LIST:
-                log.warn('Client %s already connected' % client_id)
-                self.request.sendall('')
-                return
-            else:
-                pipes = PIPES.get(client_id, None)
-                if not pipes:
-                    log.info('Creating new list of pipes for %s' % client_id)
-                    pipes = PIPES[client_id] = []
-            while 1:
-                data = self.request.recv(msg_len)
-                if not data: break
-                for pipe in pipes:
-                    os.write(pipe, data)
-                if handle_fn: handle_fn(self, data)
-    return DRH
 
 
 class Server(SocketServer.ThreadingMixIn, SocketServer.TCPServer):
 
+    ''' Server class to handle incoming signal '''
     def __init__(
             self, 
             handle_fn, 
-            get_client_id=_get_client_id, 
             msg_len=MSGLEN, 
-            host=None, 
-            port=None):
+            id_client_len=ID_CLIENT_LENGTH, 
+            host='', 
+            port=DEFAULT_PORT):
         ''' Initializes Sephiroth server '''
-        host = '' if host is None else host
-        port = DEFAULT_PORT if port is None else port
-        SocketServer.TCPServer.__init__(
-                self, (host, port), 
-                get_handler(handle_fn, msg_len, get_client_id))
+        SocketServer.TCPServer.__init__( self, (host, port), 
+                                        get_handler(handle_fn, msg_len, id_client_len))
 
         
 class Client:
 
-    def __init__(self, sock=None, msg_len=MSGLEN):
+    ''' Client class to send signal to server '''
+    def __init__(self, id, sock=None, msg_len=MSGLEN):
         if sock is None:
             self.sock = socket.socket(
                 socket.AF_INET, socket.SOCK_STREAM)
@@ -67,10 +40,11 @@ class Client:
         else:
             self.sock = sock
         self.msg_len = msg_len
+        self.id      = id
 
-    def connect(self, host, port=None):
-        port = DEFAULT_PORT if port is None else port
+    def connect(self, host, port=DEFAULT_PORT):
         self.sock.connect((host, port))
+        self.send(id)
 
     def send(self, msg):
         return self.sock.sendall(msg)
@@ -79,14 +53,58 @@ class Client:
         return self.sock.recv(self.msg_len)
 
 
-def add_client(client_id):
-    return CLIENT_LIST.append(client_id)
+class ClientNotFound(Exception):
+    pass
 
-def seek(client_id):
-    '''Seek client in list of connected clients'''
-    return client_id in CLIENT_LIST
 
-def remove(client_id):
+# ==================
+# Helper functions
+# ==================
+def get_pipes(id_client):
+    pipes = PIPES.get(id_client, None)
+    if not pipes:
+        raise ClientNotFound
+    return pipes
+
+def add_pipe(id_client, pipe):
+    pipes = get_pipes(id_client)
+    return pipes.append(pipe)
+
+def remove_pipe(id_client, pipe):
+    pipes = get_pipes(id_client)
+    return pipes.remove(pipe)
+
+def is_client_connected(id_client):
+    return id_client in CLIENT_LIST
+
+def add_client(id_client):
+    return CLIENT_LIST.append(id_client)
+
+def remove(id_client):
     '''Removes client from list of connected clients'''
-    return CLIENT_LIST.remove(client_id)
+    return CLIENT_LIST.remove(id_client)
 
+def get_handler(handle_fn, msg_len, id_client_length):
+    ''' Returns Default Request Handler(DRH) class for SocketServer '''
+    class DRH(SocketServer.BaseRequestHandler):
+        def handle(self):
+            # First message is always the id
+            id_client = self.request.recv(id_client_length)
+            if is_client_connected(id_client):
+                log.warn('Client %s already connected' % id_client)
+                self.request.sendall('')
+                return
+
+            try:
+                pipes = get_pipes(id_client)
+            except ClientNotFound:
+                # Client is new
+                log.info('Creating new list of pipes for %s' % id_client)
+                pipes = PIPES[id_client] = deque()
+            while 1:
+                data = self.request.recv(msg_len)
+                if not data: break
+                for pipe in pipes:
+                    os.write(pipe, data)
+                if handle_fn: handle_fn(self, data)
+    return DRH
