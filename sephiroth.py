@@ -10,7 +10,7 @@ DEFAULT_PORT    = 7777
 MAX_CONNECTIONS = 1000
 CLIENT_LIST     = deque()
 PIPES           = {}
-ID_CLIENT_LENGTH= 17 # MAC address length
+ID_CLIENT_LENGTH= 15 # MAC address length
 log = logging.getLogger('sephiroth')
 
 
@@ -40,11 +40,11 @@ class Client:
         else:
             self.sock = sock
         self.msg_len = msg_len
-        self.id      = id
+        self.id      = str(id)
 
     def connect(self, host, port=DEFAULT_PORT):
         self.sock.connect((host, port))
-        self.send(id)
+        self.send(self.id)
 
     def send(self, msg):
         return self.sock.sendall(msg)
@@ -62,7 +62,7 @@ class ClientNotFound(Exception):
 # ==================
 def get_pipes(id_client):
     pipes = PIPES.get(id_client, None)
-    if not pipes:
+    if pipes is None:
         raise ClientNotFound
     return pipes
 
@@ -78,10 +78,14 @@ def is_client_connected(id_client):
     return id_client in CLIENT_LIST
 
 def add_client(id_client):
-    return CLIENT_LIST.append(id_client)
+    log.warn('Adding client %s' % id_client)
+    PIPES[id_client] = deque()
+    CLIENT_LIST.append(id_client)
 
 def remove(id_client):
     '''Removes client from list of connected clients'''
+    log.warn('Removing client %s' % id_client)
+    del PIPES[id_client]
     return CLIENT_LIST.remove(id_client)
 
 def get_handler(handle_fn, msg_len, id_client_length):
@@ -94,17 +98,17 @@ def get_handler(handle_fn, msg_len, id_client_length):
                 log.warn('Client %s already connected' % id_client)
                 self.request.sendall('')
                 return
-
             try:
                 pipes = get_pipes(id_client)
             except ClientNotFound:
                 # Client is new
-                log.info('Creating new list of pipes for %s' % id_client)
-                pipes = PIPES[id_client] = deque()
+                add_client(id_client)
+                pipes = get_pipes(id_client)
             while 1:
                 data = self.request.recv(msg_len)
                 if not data: break
                 for pipe in pipes:
                     os.write(pipe, data)
                 if handle_fn: handle_fn(self, data)
+            remove(id_client)
     return DRH

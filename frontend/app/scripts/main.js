@@ -67,8 +67,11 @@ App.start_monitor = function(ws) {
     if(ws.readyState !== WebSocket.OPEN){
         alert('Ws not open.. :(');
     } else{
-        ws.send('192.168.7.2');
+        ws.send($('#client_id')[0].value);
     }
 };
 
+App.restart_monitor = function(){
+  App.ws = App.get_ws(App.start_monitor);
+}
 

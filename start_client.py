@@ -18,11 +18,15 @@ def send_data(client, t, v):
     print data
     client.send(data)
 
+def get_mac():
+    from uuid import getnode as get_mac
+    return get_mac()
+
 def start(host, port):
-    c = sephiroth.Client()
-    host = 'localhost' if host is None else host
+    client_id = get_mac()
+    c = sephiroth.Client(client_id)
     c.connect(host=host, port=port)
-    print 'Client connected'
+    print 'Client %s connected' % client_id
     count = 0.00
     while 1:
         count = count + RFQ
@@ -37,4 +41,6 @@ if __name__ == '__main__':
     parser.add_argument('-p', '--port', help='port number', type=int)
 
     args = parser.parse_args()
-    start(args.host, args.port)
+    host = args.host or 'localhost'
+    port = args.port or sephiroth.DEFAULT_PORT
+    start(host, port)

@@ -17,8 +17,10 @@ if __name__ == '__main__':
     parser.add_argument('-p', '--port', help='port number', type=int)
 
     args = parser.parse_args()
+    host = args.host or ''
+    port = args.port or sephiroth.DEFAULT_PORT
     try:
-        s = sephiroth.Server(handle_fn, host=args.host, port=args.port)
+        s = sephiroth.Server(handle_fn, host=host, port=port)
         tsephiroth   = threading.Thread(target=s.serve_forever)
         tsephiroth.start()
         
