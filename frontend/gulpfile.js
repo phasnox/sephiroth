@@ -1,8 +1,10 @@
 /* jshint node:true */
 'use strict';
 // generated on 2014-12-13 using generator-gulp-webapp 0.2.0
-var gulp = require('gulp');
-var $ = require('gulp-load-plugins')();
+var gulp  = require('gulp');
+var $     = require('gulp-load-plugins')();
+var spawn = require('child_process').spawn;
+var run   = require('gulp-run')
 
 gulp.task('styles', function () {
   return gulp.src('app/styles/main.scss')
@@ -19,7 +21,6 @@ gulp.task('jshint', function () {
   return gulp.src('app/scripts/**/*.js')
     .pipe($.jshint())
     .pipe($.jshint.reporter('jshint-stylish'))
-    .pipe($.jshint.reporter('fail'));
 });
 
 gulp.task('html', ['styles'], function () {
@@ -110,12 +111,37 @@ gulp.task('watch', ['connect'], function () {
     'app/images/**/*'
   ]).on('change', $.livereload.changed);
 
+  // Watch for bbb client change
+  gulp.watch([
+    '../sephiroth.py',
+    '../client_bbb.py'
+  ]).on('change', 
+    function(){
+      console.log('Updating bbb client...');
+      var child = spawn('scp', 
+                        ['../sephiroth.py', 
+                        '../client_bbb.py', 
+                        'root@192.168.7.2:sephiroth']);
+      
+      child.stdout.setEncoding('utf-8');
+      child.stderr.setEncoding('utf-8');
+      
+      var logdata = function(data){ console.log(data); };
+      child.stdout.on('data', logdata);
+      child.stderr.on('data', logdata);
+    });
+
   gulp.watch('app/styles/**/*.scss', ['styles']);
   gulp.watch('bower.json', ['wiredep']);
 });
 
 gulp.task('build', ['jshint', 'html', 'images', 'fonts', 'extras'], function () {
-  return gulp.src('dist/**/*').pipe($.size({title: 'build', gzip: true}));
+  return gulp.src('dist/**/*').pipe($.size({title: 'build', gzip: true}))
+                              .pipe(gulp.dest('sephiroth_mobile/www/'));
+});
+
+gulp.task('mobile', ['build'], function () {
+  return run('(cd sephiroth_mobile && cordova emulate android)').exec();
 });
 
 gulp.task('default', ['clean'], function () {

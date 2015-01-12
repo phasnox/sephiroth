@@ -22,11 +22,17 @@
       <p class="browsehappy">You are using an <strong>outdated</strong> browser. Please <a href="http://browsehappy.com/">upgrade your browser</a> to improve your experience.</p>
     <![endif]-->
 
-    <div class="hero-unit">
+    <div class="hero-unit table">
       <h1>EKG</h1>
-      <input type="text" id="client_id" value="192.168.7.2">
-      <input type="button" onclick="App.restart_monitor()" value="Restart">
-      <canvas id="ekg" width="500" height="200"></canvas>
+      <input class="row" type="text" id="hostname" value="192.168.0.77" placeholder="Ip o hostname">
+      <input class="row" type="text" id="client_id" value="000000000000000" placeholder="Id del cliente">
+      <input class="row button" type="button" onclick="App.restart_monitor()" value="Restart">
+      <div class="row">
+        <input class="col button" type="button" onclick="App.zoom_out()" value="-">
+        <input class="col button" type="button" onclick="App.zoom_in()" value="+">
+        <input class="col button" type="button" onclick="App.pause()" value="Pause">
+      </div>
+      <canvas id="ekg" width="350" height="200" ></canvas>
     </div>
 
     <!-- Google Analytics: change UA-XXXXX-X to be your site's ID. -->
@@ -42,18 +48,16 @@
     <!-- build:js scripts/vendor.js -->
     <!-- bower:js -->
     <script src="../bower_components/jquery/dist/jquery.js"></script>
+    <script src="scripts/smoothie.js"></script>
     <!-- endbower -->
     <!-- endbuild -->
 
         <!-- build:js scripts/main.js -->
         <script src="scripts/main.js"></script>
         <!-- endbuild -->
-    <script src="scripts/smoothie.js"></script>
+    
     <script>
-      App.chart = new SmoothieChart({maxValue:1, minValue:-1, millisPerPixel:10});
-      App.signal = new TimeSeries();
-      App.chart.addTimeSeries(App.signal, {lineWidth:2,strokeStyle:'#00ff00'});
-      App.ws = App.get_ws(App.start_monitor);
+      App.init();
     </script>
 </body>
 </html>

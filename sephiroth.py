@@ -3,12 +3,11 @@ import threading
 import SocketServer
 import os
 import logging
-from collections import deque
 
 MSGLEN          = 22
 DEFAULT_PORT    = 7777
 MAX_CONNECTIONS = 1000
-CLIENT_LIST     = deque()
+CLIENT_LIST     = []
 PIPES           = {}
 ID_CLIENT_LENGTH= 15 # MAC address length
 log = logging.getLogger('sephiroth')
@@ -79,7 +78,7 @@ def is_client_connected(id_client):
 
 def add_client(id_client):
     log.warn('Adding client %s' % id_client)
-    PIPES[id_client] = deque()
+    PIPES[id_client] = []
     CLIENT_LIST.append(id_client)
 
 def remove(id_client):

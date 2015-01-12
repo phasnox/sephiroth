@@ -23,10 +23,9 @@ if __name__ == '__main__':
         s = sephiroth.Server(handle_fn, host=host, port=port)
         tsephiroth   = threading.Thread(target=s.serve_forever)
         tsephiroth.start()
-        
-       # tsephirothws = threading.Thread(target=sephiroth_ws.ws_start)
-       # tsephirothws.start()
-        sephiroth_ws.ws_start()
+
+        tsephirothws = threading.Thread(target=sephiroth_ws.ws_start)
+        tsephirothws.start()
         
         print 'Sephiroth awake..'
         while 1:

@@ -3,18 +3,21 @@ import time
 import math
 import sephiroth
 import argparse
+import Adafruit_BBIO.ADC as ADC
 
+ADC.setup()
 # This indicates how many times the signal is read
 # Este numero no deberia ser mayor a 25 que equivale a 40ms
 # que es el tamaño mas pequeño en un EKG paper
-READ_FREQUENCY = 25  # Frequency in Hz
+READ_FREQUENCY = 50 # Frequency in Hz
 RFQ            = float(1)/float(READ_FREQUENCY) # In seconds
 
 def get_signal(t):
-    return math.sin(t)
+    return ADC.read_raw('P9_38')
 
 def send_data(client, time, signal):
     data = '{time:014.2f};{signal:07.2f}'.format(time=time, signal=signal)
+    print data
     client.send(data)
 
 def get_mac():

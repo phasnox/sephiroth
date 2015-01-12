@@ -3,6 +3,31 @@ console.log('\'Allo \'Allo!');
 
 App = {};
 App.services = {};
+App.chartOptions = {
+  maxValue: 1, 
+  minValue: 0, 
+  millisPerPixel: 5,
+  grid: {verticalSections: 20, millisPerLine: 50}
+};
+
+App.zoom_out = function() {
+  App.chart.options.millisPerPixel++;
+}
+
+App.zoom_in = function() {
+  App.chart.options.millisPerPixel--;
+}
+
+App.pause = function() {
+  App.close_ws = true;
+}
+
+App.init = function() {
+  App.chart  = new SmoothieChart(App.chartOptions);
+  App.signal = new TimeSeries();
+  App.chart.addTimeSeries(App.signal, {lineWidth:2, strokeStyle:'#00ff00'});
+  App.restart_monitor();
+}
 
 App.services.WebSocketService = {
   connect: function(path, on_open, on_close, on_message, on_error){
@@ -32,9 +57,10 @@ App.services.WebSocketService = {
   };
 
 App.canvas_element = document.getElementById("ekg")
-App.get_ws = function(onopen){
+App.get_ws = function(onopen, hostname){
+    hostname = hostname || location.hostname;
     return App.services.WebSocketService.connect(
-        'ws://' +  location.hostname + ':7771/sephiroth',
+        'ws://' +  hostname + ':7771/sephiroth',
         // onOpen
         function(socket){
             if(onopen) onopen(socket);
@@ -44,15 +70,17 @@ App.get_ws = function(onopen){
         },
         // onmessage
         function(e){
-            if(e.data === 'hangup'){
-                console.log('Ws closed..');
-                return;
-            }
-            var data = e.data.split(';');
-            var time  = parseFloat(data[0]) * 1000;  
-            var value = parseFloat(data[1]);
-            App.signal.append(time, value);
-            App.chart.reference_time = time;
+          if(e.data === 'hangup' || App.close_ws){
+            App.ws.close();
+            console.log('Ws closed..');
+            App.close_ws = false;
+            return;
+          }
+          var data = e.data.split(';');
+          var time  = parseFloat(data[0]) * 1000;  
+          var value = parseFloat(data[1]);
+          App.signal.append(time, value);
+          App.chart.reference_time = time;
         }
     );
 }
@@ -72,6 +100,7 @@ App.start_monitor = function(ws) {
 };
 
 App.restart_monitor = function(){
-  App.ws = App.get_ws(App.start_monitor);
+  var hostname = $('#hostname')[0].value;
+  App.ws = App.get_ws(App.start_monitor, hostname);
 }
 
