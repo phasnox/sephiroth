@@ -1,6 +1,5 @@
 import sephiroth
 import sephiroth_ws
-import settings
 import threading
 import os
 import socket
