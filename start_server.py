@@ -6,13 +6,14 @@ import socket
 import sys
 import argparse
 
+DATA=[]
 
 def handle_fn(ip, msg):
     pass #print 'Mensaje recibido de %s: %s' % (ip, msg)
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument('-o', '--host', help='host name or ip address')
+    parser.add_argument('-o', '--host', help='host name or ip v')
     parser.add_argument('-p', '--port', help='port number', type=int)
 
     args = parser.parse_args()
@@ -25,6 +26,9 @@ if __name__ == '__main__':
 
         tsephirothws = threading.Thread(target=sephiroth_ws.ws_start)
         tsephirothws.start()
+        
+        tsephiroth_hr = threading.Thread(target=sephiroth_ws.ws_hr_start)
+        tsephiroth_hr.start()
         
         print 'Sephiroth awake..'
         while 1:

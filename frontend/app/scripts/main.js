@@ -99,8 +99,44 @@ App.start_monitor = function(ws) {
     }
 };
 
-App.restart_monitor = function(){
-  var hostname = $('#hostname')[0].value;
-  App.ws = App.get_ws(App.start_monitor, hostname);
+
+function hr_monitor() { 
+  App.hr_timeout = setTimeout(
+    function(){
+      if(App.ws_hr.readyState === WebSocket.OPEN){
+        App.ws_hr.send($('#client_id')[0].value);
+      }
+      hr_monitor();
+    }, 2000);
 }
 
+App.restart_monitor = function(){
+  var hostname = $('#hostname')[0].value;
+  App.ws       = App.get_ws(App.start_monitor, hostname);
+  App.ws_hr    = App.get_hr_ws(App.start_monitor, hostname);
+  if ( App.hr_timeout ){
+    clearTimeout(App.hr_timeout);
+    hr_monitor();
+  } else {
+    hr_monitor();
+  }
+}
+
+// Heart Rate
+App.get_hr_ws = function(onopen, hostname){
+    hostname = hostname || location.hostname;
+    return App.services.WebSocketService.connect(
+        'ws://' +  hostname + ':7772/sephiroth_hr',
+        // onOpen
+        function(socket){
+            if(onopen) onopen(socket);
+        },
+        // onClose
+        function(){
+        },
+        // onmessage
+        function(e){
+          $('.heartrate').html(e.data);
+        }
+    );
+}
