@@ -113,14 +113,12 @@ gulp.task('watch', ['connect'], function () {
 
   // Watch for bbb client change
   gulp.watch([
-    '../sephiroth.py',
     '../client_bbb.py'
   ]).on('change', 
     function(){
       console.log('Updating bbb client...');
       var child = spawn('scp', 
-                        ['../sephiroth.py', 
-                        '../client_bbb.py', 
+                        ['../client_bbb.py', 
                         'root@192.168.7.2:sephiroth']);
       
       child.stdout.setEncoding('utf-8');
