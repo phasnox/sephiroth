@@ -6,37 +6,48 @@ from tornado import websocket
 from tornado import web, httpserver, ioloop
 from collections import deque
 
+# For heart rate calculation
+import numpy as np
+from scipy import signal
+
+# Default variables
 WS_PORT   = 7771
-WS_HR_PORT= 7772
-log       = logging.getLogger('sephiroth_ws')
-THRESHOLD     = 0.3
-CLIENT_DATA   = {}
-CLIENT_HR     = {}
-CLIENT_PEAKS  = {}
+
+# For hr calculation
+SAMPLING_HZ = 50
+CLIENT_DATA = {}
+
+log = logging.getLogger('sephiroth_ws')
 
 def get_values(data):
     values = data.split(';')
     return float( values[0] ), float( values[1] )
 
-
-def set_heartrate_data(client_id, data):
-    hr              = 0
+def set_client_data(client_id, data):
     datalist        = CLIENT_DATA.get(client_id, None)
     time_val, value = get_values(data)
     
     if datalist:
         datalist.append(value)
-        datalength = float( len(datalist) )
-        avg = float( sum(datalist) ) / datalength
-        if value > avg * 1.75:
-            elapsed = time_val - CLIENT_PEAKS.get(client_id, 0.0)
-            if elapsed > THRESHOLD:
-                CLIENT_PEAKS[client_id] = time_val
-                CLIENT_HR[client_id]    = 60 / elapsed
-
     else:
-        CLIENT_DATA[client_id] = deque([value], maxlen=300)
-        CLIENT_HR[client_id]   = 0
+        # We need max length to be the number of samples in 6 seconds
+        # To calculate heart rate which is 10*num_of_peaks_in_6_seconds
+        maxlen = 6 * SAMPLING_HZ
+        CLIENT_DATA[client_id] = deque([value], maxlen=maxlen)
+
+def get_heart_rate(client_id):
+    data = CLIENT_DATA.get(client_id, None)
+    if data:
+        try:
+            num_peaks = signal.find_peaks_cwt(
+                data, 
+                np.arange(10, 20)
+            )
+            return len(num_peaks) * 10
+        except ValueError:
+            # TODO fix this!
+            return 60
+    return 0
 
 def handle_signal(ws, message):
     def handle_fn(msg):
@@ -54,7 +65,7 @@ def handle_signal(ws, message):
             data = os.read(pin, sephiroth.MSGLEN)
             try:
                 log.info('WS write: %s' % data)
-                set_heartrate_data(id_client, data)
+                set_client_data(id_client, data)
                 ws.write_message(data)
             except websocket.WebSocketClosedError:
                 log.error('WS Closed error')
@@ -72,9 +83,9 @@ def handle_signal(ws, message):
 
 
 def handle_heartrate(ws, client_id):
-    ws.write_message( '%.2f' % CLIENT_HR.get(client_id, 0.0) )
+    ws.write_message( '%d' % get_heart_rate(client_id) )
 
-def get_ws(handle_msg):
+def get_handler(handle_msg):
     class SephirothWebSocket(websocket.WebSocketHandler):
 
         def __init__(self, application, request, **kwargs):
@@ -97,18 +108,11 @@ def get_ws(handle_msg):
 
 def ws_start():
     application = web.Application([
-        (r'/sephiroth', get_ws(handle_signal)),
+        (r'/sephiroth', get_handler(handle_signal)),
+        (r'/sephiroth_hr', get_handler(handle_heartrate)),
     ])
 
     http_server = httpserver.HTTPServer(application)
     http_server.listen(WS_PORT)
     ioloop.IOLoop.instance().start()
 
-def ws_hr_start():
-    application = web.Application([
-        (r'/sephiroth_hr', get_ws(handle_heartrate)),
-    ])
-
-    http_server = httpserver.HTTPServer(application)
-    http_server.listen(WS_HR_PORT)
-    ioloop.IOLoop.instance().start()

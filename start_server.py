@@ -27,8 +27,8 @@ if __name__ == '__main__':
         tsephirothws = threading.Thread(target=sephiroth_ws.ws_start)
         tsephirothws.start()
         
-        tsephiroth_hr = threading.Thread(target=sephiroth_ws.ws_hr_start)
-        tsephiroth_hr.start()
+        #tsephiroth_hr = threading.Thread(target=sephiroth_ws.ws_hr_start)
+        #tsephiroth_hr.start()
         
         print 'Sephiroth awake..'
         while 1:

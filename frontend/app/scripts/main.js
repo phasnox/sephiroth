@@ -126,7 +126,7 @@ App.restart_monitor = function(){
 App.get_hr_ws = function(onopen, hostname){
     hostname = hostname || location.hostname;
     return App.services.WebSocketService.connect(
-        'ws://' +  hostname + ':7772/sephiroth_hr',
+        'ws://' +  hostname + ':7771/sephiroth_hr',
         // onOpen
         function(socket){
             if(onopen) onopen(socket);

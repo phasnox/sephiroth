@@ -4,12 +4,15 @@ import SocketServer
 import os
 import logging
 
+# Default values
 MSGLEN          = 22
 DEFAULT_PORT    = 7777
 MAX_CONNECTIONS = 1000
+ID_CLIENT_LENGTH= 15
+
+# Global variables
 CLIENT_LIST     = []
 PIPES           = {}
-ID_CLIENT_LENGTH= 15 # MAC address length
 log = logging.getLogger('sephiroth')
 
 

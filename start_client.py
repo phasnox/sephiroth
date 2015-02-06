@@ -3,15 +3,16 @@ import time
 import math
 import sephiroth
 import argparse
+import socket
 
 # This indicates how many times the signal is read
 # Este numero no deberia ser mayor a 25 que equivale a 40ms
 # que es el tamaño mas pequeño en un EKG paper
-READ_FREQUENCY = 25  # Frequency in Hz
+READ_FREQUENCY = 50  # Frequency in Hz
 RFQ            = float(1)/float(READ_FREQUENCY) # In seconds
 
 def get_signal(t):
-    return math.sin(t)
+    return pow(math.sin(5*t), 2)
 
 def send_data(client, time, signal):
     data = '{time:014.2f};{signal:07.2f}'.format(time=time, signal=signal)
@@ -25,7 +26,13 @@ def start(host, port):
     # Use mac address as client id
     client_id = '000000000000000' #get_mac()
     client    = sephiroth.Client(client_id)
-    client.connect(host=host, port=port)
+    while True:
+        try:
+            client.connect(host=host, port=port)
+            break
+        except socket.error:
+            print 'Attempt to reconnect in 3 seconds...'
+            time.sleep(3)
     
     print 'Client %s connected' % client_id
     count = 0.00
