@@ -1,4 +1,4 @@
-* Dependencies for running EKG example
+###Dependencies for running EKG example
  - node
  - npm
  - bower
