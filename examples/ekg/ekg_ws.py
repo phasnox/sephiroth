@@ -20,12 +20,11 @@ CLIENT_DATA = {}
 log = logging.getLogger('sephiroth_ws')
 
 def get_values(data):
-    values = data.split(';')
-    return float( values[0] ), float( values[1] )
+    return float( data )
 
 def set_client_data(client_id, data):
     datalist        = CLIENT_DATA.get(client_id, None)
-    time_val, value = get_values(data)
+    value = get_values(data)
     
     if datalist:
         datalist.append(value)

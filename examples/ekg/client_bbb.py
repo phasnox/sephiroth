@@ -9,26 +9,20 @@ import socket
 
 ADC.setup()
 # This indicates how many times the signal is read
-# Este numero no deberia ser mayor a 25 que equivale a 40ms
-# que es el tamaño mas pequeño en un EKG paper
-READ_FREQUENCY = 100 # Frequency in Hz
+READ_FREQUENCY = 50 # Frequency in Hz
 RFQ            = float(1)/float(READ_FREQUENCY) # In seconds
 
 def get_signal(t):
     return ADC.read('P9_38')
 
-def send_data(client, time, signal):
-    data = '{time:014.2f};{signal:07.2f}'.format(time=time, signal=signal)
+def send_data(client, signal):
+    data = '{signal:07.2f}'.format(signal=signal)
     print data
     client.send(data)
 
-def get_mac():
-    from uuid import getnode as get_mac
-    return get_mac()
-
 def start(host, port):
     # Use mac address as client id
-    client_id = '000000000000000' #get_mac()
+    client_id = '000000000000000'
     client    = sephiroth.Client(client_id)
     
     while True:
@@ -40,11 +34,9 @@ def start(host, port):
             time.sleep(3)
 
     print 'Client %s connected' % client_id
-    count = 0.00
     while 1:
-        count  = count + RFQ
         signal = get_signal(count)
-        send_data(client, count, signal)
+        send_data(client, signal)
         time.sleep(RFQ) # Read frequency
 
 

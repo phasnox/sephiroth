@@ -6,21 +6,15 @@ import argparse
 import socket
 
 # This indicates how many times the signal is read
-# Este numero no deberia ser mayor a 25 que equivale a 40ms
-# que es el tamaño mas pequeño en un EKG paper
 READ_FREQUENCY = 50  # Frequency in Hz
 RFQ            = float(1)/float(READ_FREQUENCY) # In seconds
 
 def get_signal(t):
     return pow(math.sin(5*t), 2)
 
-def send_data(client, time, signal):
-    data = '{time:014.2f};{signal:07.2f}'.format(time=time, signal=signal)
+def send_data(client, signal):
+    data = '{signal:07.2f}'.format(signal=signal)
     client.send(data)
-
-def get_mac():
-    from uuid import getnode as get_mac
-    return get_mac()
 
 def start(host, port):
     # Use mac address as client id
@@ -39,7 +33,7 @@ def start(host, port):
     while 1:
         count  = count + RFQ
         signal = get_signal(count)
-        send_data(client, count, signal)
+        send_data(client, signal)
         time.sleep(RFQ) # Read frequency
 
 

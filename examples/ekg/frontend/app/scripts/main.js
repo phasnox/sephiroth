@@ -9,7 +9,8 @@ App.chartOptions = {
   millisPerPixel: 5,
   grid: {verticalSections: 20, millisPerLine: 50}
 };
-
+App.READ_FREQUENCY = 50  // Frequency in Hz
+App.RFQ            = 1/App.READ_FREQUENCY // In seconds
 App.zoom_out = function() {
   App.chart.options.millisPerPixel++;
 }
@@ -63,6 +64,7 @@ App.get_ws = function(onopen, hostname){
         'ws://' +  hostname + ':7771/sephiroth',
         // onOpen
         function(socket){
+            App.count = 0;
             if(onopen) onopen(socket);
         },
         // onClose
@@ -76,11 +78,11 @@ App.get_ws = function(onopen, hostname){
             App.close_ws = false;
             return;
           }
-          var data = e.data.split(';');
-          var time  = parseFloat(data[0]) * 1000;  
-          var value = parseFloat(data[1]);
+          var time  = App.count * 1000;  
+          var value = parseFloat(e.data);
           App.signal.append(time, value);
           App.chart.reference_time = time;
+          App.count = App.count + App.RFQ;
         }
     );
 }
