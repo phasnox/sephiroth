@@ -14,8 +14,9 @@ from scipy import signal
 WS_PORT   = 7771
 
 # For hr calculation
-SAMPLING_HZ = 50
-CLIENT_DATA = {}
+SAMPLING_HZ   = 50
+CLIENT_DATA   = {}
+CACHE_SIZE    = 1000000
 
 log = logging.getLogger('sephiroth_ws')
 
@@ -23,21 +24,22 @@ def get_values(data):
     return float( data )
 
 def set_client_data(client_id, data):
-    datalist        = CLIENT_DATA.get(client_id, None)
-    value = get_values(data)
+    datalist  = CLIENT_DATA.get(client_id, None)
+    value     = get_values(data)
     
     if datalist:
         datalist.append(value)
     else:
-        # We need max length to be the number of samples in 6 seconds
-        # To calculate heart rate which is 10*num_of_peaks_in_6_seconds
-        maxlen = 6 * SAMPLING_HZ
-        CLIENT_DATA[client_id] = deque([value], maxlen=maxlen)
+        CLIENT_DATA[client_id] = [value]
 
 def get_heart_rate(client_id):
     data = CLIENT_DATA.get(client_id, None)
     if data:
         try:
+            # We need max length to be the number of samples in 6 seconds
+            # To calculate heart rate which is 10*num_of_peaks_in_6_seconds
+            nrecords = 6 * SAMPLING_HZ * -1
+            data     = data[nrecords:]
             num_peaks = signal.find_peaks_cwt(
                 data, 
                 np.arange(10, 20)
@@ -72,6 +74,7 @@ def handle_signal(ws, message):
         # TODO Look for edge cases where this line may not be executed
         # This could be a source of a memory leak
         sephiroth.remove_pipe(id_client, pout)
+        del CLIENT_DATA[id_client]
         ws.close()
 
     if message == 'stop':
@@ -83,6 +86,35 @@ def handle_signal(ws, message):
 
 def handle_heartrate(ws, client_id):
     ws.write_message( '%d' % get_heart_rate(client_id) )
+
+def get_data(client_id):
+    data = CLIENT_DATA.get('data/' + client_id, None)
+    if data is None:
+        data    = [ float(line.rstrip()) for line in open(client_id, 'read') ]
+        max_val = max(data)
+        data    = [x/max_val for x in data]
+
+    return data
+
+def handle_history(ws, message):
+    message_split = message.split(';')
+    if len(message_split) != 3:
+        ws.close()
+        return
+
+    client_id  = message_split[0]
+    from_point = int(message_split[1])
+    n_records  = int(message_split[2])
+    data       = get_data(client_id)
+
+    if data:
+        if n_records > 500 or n_records<0: n_records = 500
+        if from_point == -1: 
+            return_data = data[n_records*-1:]
+        else:
+            return_data = data[from_point:n_records*-1]
+
+        ws.write_message( return_data )
 
 def get_handler(handle_msg):
     class SephirothWebSocket(websocket.WebSocketHandler):
@@ -109,6 +141,7 @@ def ws_start():
     application = web.Application([
         (r'/sephiroth', get_handler(handle_signal)),
         (r'/sephiroth_hr', get_handler(handle_heartrate)),
+        (r'/sephiroth_hist', get_handler(handle_history)),
     ])
 
     http_server = httpserver.HTTPServer(application)
