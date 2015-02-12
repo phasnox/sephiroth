@@ -14,3 +14,4 @@ sudo npm install -g bower
 sudo npm install -g gulp
 bower install
 npm install gulp
+gulp
