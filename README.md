@@ -19,22 +19,22 @@
  5. If you are on Debian run 
     `bash scripts/ekg_setup.sh`
  6. Install python dependencies
-    ```bash
-    #Python dependencies
-    sudo pip install tornado
-    sudo pip install numpy
-    sudo pip install scipy
-    ```
+     ```bash
+     #Python dependencies
+     sudo pip install tornado
+     sudo pip install numpy
+     sudo pip install scipy
+     ```
  7. Install bower and gulp
-    ```bash
-    # Dependencies for the webapp
-    cd examples/ekg/frontend
-    sudo npm install -g bower
-    sudo npm install -g gulp
-    bower install
-    npm install gulp
-    gulp
-    ```
+     ```bash
+     # Dependencies for the webapp
+     cd examples/ekg/frontend
+     sudo npm install -g bower
+     sudo npm install -g gulp
+     bower install
+     npm install gulp
+     gulp
+     ```
 
 ###Run the sample server
  `bash scripts/start.sh`
