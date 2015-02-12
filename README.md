@@ -12,18 +12,21 @@
 ###Steps for setting up EKG example
  1. Install python and pip
  2. Download and install nodejs [here](http://nodejs.org/download/)
- 3. Clone this repo `git clone https://github.com/phasnox/sephiroth.git`
- 4. Checkout eksampling branch `cd sephiroth && git checkout eksampling`
- 3. If you are on Debian run `bash scripts/ekg_setup.sh` and skip the next steps
+ 3. Clone this repo 
+    `git clone https://github.com/phasnox/sephiroth.git`
+ 4. Checkout eksampling branch 
+    `cd sephiroth && git checkout eksampling`
+ 3. If you are on Debian run 
+    `bash scripts/ekg_setup.sh`
  4. Install python dependencies
- ```bash   
+ ```sh   
  #Python dependencies
  sudo pip install tornado
  sudo pip install numpy
  sudo pip install scipy
  ```
  5. Install bower and gulp
- ```bash   
+ ```sh   
  # Dependencies for the webapp
  cd examples/ekg/frontend
  sudo npm install -g bower
