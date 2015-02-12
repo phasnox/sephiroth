@@ -24,12 +24,17 @@
 
     <div class="hero-unit table">
       <h1>EKG <span class="heartrate">0.0</span> </h1>
-      <input class="row" type="text" id="hostname" value="192.168.43.17" placeholder="Ip o hostname">
+      <input style="display: none;" class="row" type="text" id="hostname" value="" placeholder="Ip o hostname">
+      <div class="row"> Id del cliente</div>
       <input class="row" type="text" id="client_id" value="000000000000000" placeholder="Id del cliente">
+      <div class="row">Frecuencia de Muestreo HZ</div>
+      <input class="row" type="text" id="hz" value="50" placeholder="Frecuencia de muestra en hz">
       <input class="row button" type="button" onclick="App.start_monitor()" value="Restart">
       <div class="row">
         <input class="col button" type="button" onclick="App.zoom_out()" value="-">
         <input class="col button" type="button" onclick="App.zoom_in()" value="+">
+        <input class="col button" type="button" onclick="App.move_back()" value="<-">
+        <input class="col button" type="button" onclick="App.move_forward()" value="->">
         <input class="col button" type="button" onclick="App.pause()" value="Pause">
       </div>
       <canvas id="ekg" width="350" height="200" ></canvas>

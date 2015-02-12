@@ -4,6 +4,7 @@ import math
 import sephiroth
 import argparse
 import socket
+from datetime import datetime
 
 # This indicates how many times the signal is read
 READ_FREQUENCY = 50  # Frequency in Hz
@@ -13,7 +14,8 @@ def get_signal(t):
     return pow(math.sin(5*t), 2)
 
 def send_data(client, signal):
-    data = '{signal:07.2f}'.format(signal=signal)
+    data = '{time:%Y-%m-%dT%H:%M:%S.%fZ};{signal:07.2f}' \
+            .format(time=datetime.now(), signal=signal)
     client.send(data)
 
 def start(host, port):

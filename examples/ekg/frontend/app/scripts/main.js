@@ -9,11 +9,8 @@ App.chartOptions = {
   millisPerPixel: 5,
   grid: {verticalSections: 20, millisPerLine: 50}
 };
-App.READ_FREQUENCY = 50;  // Frequency in Hz
-App.RFQ            = 1/App.READ_FREQUENCY; // In seconds
-App.time = 0;
+App.current_time   = new Date();
 App.canvas_element = document.getElementById("ekg");
-App.current_position = 0;
 
 // Functions
 App.init = function() {
@@ -21,6 +18,14 @@ App.init = function() {
   App.signal = new TimeSeries();
   App.chart.addTimeSeries(App.signal, {lineWidth:2, strokeStyle:'#00ff00'});
   App.start_monitor();
+}
+
+App.getPageSize = function() {
+  var hz    = $('#hz')[0].value;
+  var width = App.canvas_element.width;
+  var total_ms = App.chartOptions.millisPerPixel * width; // Millis in chart
+
+  return Math.round(total_ms/(1/hz*1000));
 }
 
 App.zoom_out = function() {
@@ -63,7 +68,6 @@ App.services.WebSocketService = {
   };
 
 App.get_ws = function(hostname, onopen, onmessage, onclose){
-    hostname = hostname || location.hostname;
     return App.services.WebSocketService.connect(
         'ws://' +  hostname,
         // onOpen
@@ -81,19 +85,25 @@ App.get_ws = function(hostname, onopen, onmessage, onclose){
     );
 }
 
+App.get_ws_hist = function(onopen) {
+  var hostname = $('#hostname')[0].value;
+  hostname = hostname || location.hostname;
+  return App.get_ws(hostname + ':7771/sephiroth_hist', onopen, onhist_received, onhist_close);
+}
+
 App.start_monitor = function(){
   var hostname = $('#hostname')[0].value;
   hostname = hostname || location.hostname;
-  App.ws_signal = App.get_ws(hostname + ':7771/sephiroth', onsignal_open, onsignal_received, onsignalclose);
+  App.ws_signal = App.get_ws(hostname + ':7771/sephiroth', onsignal_open, onsignal_received, onsignal_close);
   App.ws_hr     = App.get_ws(hostname + ':7771/sephiroth_hr', onhr_open, onhr_received, onhr_close);
-  App.ws_hist   = App.get_ws(hostname + ':7771/sephiroth_hist', onhist_open, onhist_received, onhist_close);
+  App.ws_hist   = App.get_ws_hist(onhist_open);
 }
 
 // ======================
 // Signal processing
 // ======================
 function onsignal_open(ws){
-  App.time = 0;
+  App.current_time = new Date();
   App.chart.streamTo(App.canvas_element);
   if(ws.readyState === WebSocket.CONNECTING) {
         console.log('Websocket: conectando..');
@@ -109,16 +119,18 @@ function onsignal_open(ws){
 
 function onsignal_received(e){
   if(e.data === 'hangup' || App.close_ws){
-    App.ws.close();
+    App.ws_signal.close();
     console.log('Ws closed..');
     App.close_ws = false;
     return;
   }
-  var time  = App.time * 1000;  
-  var value = parseFloat(e.data);
+
+  var values = e.data.split(';');
+  var time   = new Date(values[0]);
+  var value  = parseFloat(values[1]);
   App.signal.append(time, value);
   App.chart.reference_time = time;
-  App.time = App.time + App.RFQ;
+  App.current_time = time;
 }
 
 function onsignal_close(){
@@ -164,18 +176,22 @@ function onhist_received(e){
     return;
   }
 
-  if(typeof(data) !== 'array') {
+  if( !(data instanceof Array) ) {
     alert('Datos incorrectos');
     return;
   }
   var size  = data.length;
-  App.time  = App.current_position * App.RFQ;
+
+  if (size === 0) {
+    alert('No existen mas datos');
+  }
+
   for(var i=0; i<data.length; i++) {
-    var time  = App.time * 1000;  
-    var value = parseFloat(data[i]);
-    App.signal.append(time, value);
+    var point = data[i];  
+    var time  = new Date(point.time);
+    App.signal.append(time, point.value);
     App.chart.reference_time = time;
-    App.time = App.time + App.RFQ;
+    App.current_time = time;
   }
 }
 
@@ -188,28 +204,27 @@ function onhist_close(){
  * Sends request for data n_records from server from point: from_point
  * The response is then processed by function onhist_received
  */
-App.request_hist_data(from_point, n_records) {
+App.request_hist_data = function(from_point, n_records) {
   var client_id = $('#client_id')[0].value;
-  var request   = client_id + ';' + from_point + ';' + n_records;
-  App.ws_hist.send(request);
+  var request   = client_id + ';' + from_point.toJSON() + ';' + n_records;
+  var readyState= App.ws_hist.readyState; 
+  if(readyState === WebSocket.OPEN) {
+    App.ws_hist.send(request);
+  } else if(readyState === WebSocket.CLOSED){
+    App.ws_hist = App.get_ws_hist(
+        function(ws){
+          ws.send(request);
+        }
+    );
+  }
 }
 
-App.more_data = true;
 App.move_forward = function() {
   App.close_ws = true;
-  if(!App.more_data) return;
-  App.more_data = false;
-  App.current_position = App.current_position + App.page_size;
-  App.request_hist_data(App.current_position, 500);
+  App.request_hist_data(App.current_time, App.getPageSize());
 }
 
 App.move_back = function() {
-  App.close_ws = true;
-  App.current_position = App.current_position - App.page_size;
-  if(App.current_position < 0) {
-    App.current_position = App.current_position - App.page_size;
-  } else {
-    App.request_hist_data(App.current_position, 500);
-  }
-
+  App.close_ws  = true;
+  App.request_hist_data(App.current_time, App.getPageSize()*-1);
 }

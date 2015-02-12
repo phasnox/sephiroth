@@ -5,7 +5,7 @@ import os
 import logging
 
 # Default values
-MSGLEN          = 7
+MSGLEN          = 35
 DEFAULT_PORT    = 7777
 MAX_CONNECTIONS = 1000
 ID_CLIENT_LENGTH= 15
