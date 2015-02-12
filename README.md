@@ -16,17 +16,17 @@
     `git clone https://github.com/phasnox/sephiroth.git`
  4. Checkout eksampling branch 
     `cd sephiroth && git checkout eksampling`
- 3. If you are on Debian run 
+ 5. If you are on Debian run 
     `bash scripts/ekg_setup.sh`
- 4. Install python dependencies
-```bash
- #Python dependencies
+ 6. Install python dependencies
+         ```bash
+         #Python dependencies
  sudo pip install tornado
  sudo pip install numpy
  sudo pip install scipy
-```
- 5. Install bower and gulp
-```bash
+         ```
+ 7. Install bower and gulp
+        ```bash
  # Dependencies for the webapp
  cd examples/ekg/frontend
  sudo npm install -g bower
