@@ -36,8 +36,18 @@ App.zoom_in = function() {
   App.chart.options.millisPerPixel--;
 }
 
-App.pause = function() {
+App.close_all = function() {
+  function closews(ws) {
+    if(ws && ws.readyState === WebSocket.OPEN) ws.close();
+  }
   App.close_ws = true;
+  closews(App.ws_signal);
+  closews(App.ws_hr);
+  closews(App.ws_hist);
+}
+
+App.pause = function() {
+  App.close_all();
 }
 
 App.services.WebSocketService = {
@@ -92,6 +102,8 @@ App.get_ws_hist = function(onopen) {
 }
 
 App.start_monitor = function(){
+  App.close_all();
+  App.close_ws = false;
   var hostname = $('#hostname')[0].value;
   hostname = hostname || location.hostname;
   App.ws_signal = App.get_ws(hostname + ':7771/sephiroth', onsignal_open, onsignal_received, onsignal_close);
@@ -105,16 +117,7 @@ App.start_monitor = function(){
 function onsignal_open(ws){
   App.current_time = new Date();
   App.chart.streamTo(App.canvas_element);
-  if(ws.readyState === WebSocket.CONNECTING) {
-        console.log('Websocket: conectando..');
-        alert('Ha ocurrido un error.. intente mas tarde');
-        return;
-    }
-    if(ws.readyState !== WebSocket.OPEN){
-        alert('Ws not open.. :(');
-    } else{
-        ws.send($('#client_id')[0].value);
-    }
+  ws.send($('#client_id')[0].value);
 }
 
 function onsignal_received(e){
