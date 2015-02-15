@@ -1,116 +1,122 @@
 import socket
+import select
+import errno
 import threading
 import SocketServer
 import os
 import logging
+import time
 
-# Default values
-MSGLEN          = 35
-DEFAULT_PORT    = 7777
-MAX_CONNECTIONS = 1000
-ID_CLIENT_LENGTH= 15
+log           = logging.getLogger('sephiroth')
+MSG_SEPARATOR = '\n'
 
-# Global variables
-CLIENT_LIST     = []
-PIPES           = {}
-log = logging.getLogger('sephiroth')
-
-
-class Server(SocketServer.ThreadingMixIn, SocketServer.TCPServer):
-
-    ''' Server class to handle incoming signal '''
-    def __init__(
-            self, 
-            handle_fn, 
-            msg_len=MSGLEN, 
-            id_client_len=ID_CLIENT_LENGTH, 
-            host='', 
-            port=DEFAULT_PORT):
-        ''' Initializes Sephiroth server '''
-        SocketServer.TCPServer.__init__( self, (host, port), 
-                                        get_handler(handle_fn, msg_len, id_client_len))
-
-        
-class Client:
-
-    ''' Client class to send signal to server '''
-    def __init__(self, id, sock=None, msg_len=MSGLEN):
-        if sock is None:
-            self.sock = socket.socket(
-                socket.AF_INET, socket.SOCK_STREAM)
-            self.sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-        else:
-            self.sock = sock
-        self.msg_len = msg_len
-        self.id      = str(id)
-
-    def connect(self, host, port=DEFAULT_PORT):
-        self.sock.connect((host, port))
-        self.send(self.id)
-
-    def send(self, msg):
-        return self.sock.sendall(msg)
-
-    def receive(self):
-        return self.sock.recv(self.msg_len)
-
-
-class ClientNotFound(Exception):
+class EndpointExists(Exception):
     pass
 
+class SephirothReadError(Exception):
+    pass
 
-# ==================
-# Helper functions
-# ==================
-def get_pipes(id_client):
-    pipes = PIPES.get(id_client, None)
-    if pipes is None:
-        raise ClientNotFound
-    return pipes
+class STATE:
+    CONNECTED       = '0'
+    ENDPOINT_EXISTS = '1'
 
-def add_pipe(id_client, pipe):
-    pipes = get_pipes(id_client)
-    return pipes.append(pipe)
-
-def remove_pipe(id_client, pipe):
-    pipes = get_pipes(id_client)
-    return pipes.remove(pipe)
-
-def is_client_connected(id_client):
-    return id_client in CLIENT_LIST
-
-def add_client(id_client):
-    log.warn('Adding client %s' % id_client)
-    PIPES[id_client] = []
-    CLIENT_LIST.append(id_client)
-
-def remove(id_client):
-    '''Removes client from list of connected clients'''
-    log.warn('Removing client %s' % id_client)
-    del PIPES[id_client]
-    return CLIENT_LIST.remove(id_client)
-
-def get_handler(handle_fn, msg_len, id_client_length):
-    ''' Returns Default Request Handler(DRH) class for SocketServer '''
-    class DRH(SocketServer.BaseRequestHandler):
-        def handle(self):
-            # First message is always the id
-            id_client = self.request.recv(id_client_length)
-            if is_client_connected(id_client):
-                log.warn('Client %s already connected' % id_client)
-                self.request.sendall('')
-                return
+def readall(sock):
+    sock.setblocking(0)
+    msg = []
+    read_ready, _, _ = select.select([sock], [], [])
+    if sock in read_ready:
+        while 1:
             try:
-                pipes = get_pipes(id_client)
-            except ClientNotFound:
-                # Client is new
-                add_client(id_client)
-                pipes = get_pipes(id_client)
-            while 1:
-                data = self.request.recv(msg_len)
-                if not data: break
-                for pipe in pipes:
-                    os.write(pipe, data)
-                if handle_fn: handle_fn(self, data)
-            remove(id_client)
-    return DRH
+                chunk = sock.recv(1)
+                if not chunk or chunk == MSG_SEPARATOR:
+                    break
+                msg.append(chunk)
+            except socket.error as e:
+                if e.errno != errno.EWOULDBLOCK:
+                    raise SephirothReadError
+                # No more data
+                break
+    return ''.join(msg)
+
+
+class endpoint:
+
+    ''' Endpoint class '''
+    def __init__(self, uid):
+        self.uid       = uid
+        self.alive     = False
+        self.endpoints = []
+        self.handlers  = {}
+        self.sock  = socket.socket(
+            socket.AF_INET, socket.SOCK_STREAM)
+        self.sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+
+    def __handle_conn(self, conn, addr):
+        
+        def handle_thread(conn, addr):
+            # Check for uid
+            uid = readall(conn)
+            if uid in self.endpoints:
+                conn.sendall(STATE.ENDPOINT_EXISTS)
+                conn.close()
+                return
+
+            if not uid:
+                log.error('Empty response uid :(')
+                conn.close()
+                return
+
+            self.endpoints.append(uid)
+            conn.sendall(STATE.CONNECTED)
+            while True:
+                msg = readall(conn)
+                if not msg: break
+                handlers = self.handlers.get(uid, None)
+                if handlers:
+                    for fn in handlers:
+                        fn(conn, uid, msg)
+
+            log.info('Removing %s' % uid)
+            self.endpoints.remove(uid)
+            conn.close()
+
+
+        t = threading.Thread(target=handle_thread, args=(conn, addr))
+        t.start()
+        return t
+
+    def bind(self, host, port):
+        self.sock.bind((host, port))
+        self.sock.listen(1)
+        self.alive = True
+
+        while 1:
+            conn, addr = self.sock.accept()
+            self.__handle_conn(conn, addr)
+
+        self.alive = False
+
+    def connect(self, host, port):
+        self.sock.connect((host, port))
+        self.sock.sendall(self.uid)
+        response = readall(self.sock)
+        if(response == STATE.CONNECTED):
+            self.alive = True
+            return
+        if(response == STATE.ENDPOINT_EXISTS):
+            raise EndpointExists
+
+    def remove_handler(self, uid, handler):
+        handlers = self.handlers.get(uid, None)
+        if handlers is None:
+            handlers = self.handlers[uid] = []
+        handlers.remove(handler)
+
+    def add_handler(self, uid, handler):
+        handlers = self.handlers.get(uid, None)
+        if handlers is None:
+            handlers = self.handlers[uid] = []
+        handlers.append(handler)
+
+    def send(self, msg):
+        self.sock.sendall(msg + '\n')

@@ -50,30 +50,20 @@ def get_heart_rate(client_id):
     return 0
 
 def handle_signal(ws, message):
-    def handle_fn(msg):
-        id_client = msg
+    
+    def send_signal(conn, uid, msg):
+        #if not ws.is_open: return
         try:
-            pin, pout = os.pipe()
-            sephiroth.add_pipe(id_client, pout)
-        except sephiroth.ClientNotFound:
-            ws.close()
-            log.warn('Client %s is not connected' % id_client)
-            return
-            
-        while 1:
-            if not ws.is_open: break
-            data = os.read(pin, sephiroth.MSGLEN)
-            try:
-                log.info('WS write: %s' % data)
-                set_client_data(id_client, data)
-                ws.write_message( data )
-            except websocket.WebSocketClosedError:
-                log.error('WS Closed error')
-                break
-        # TODO Look for edge cases where this line may not be executed
-        # This could be a source of a memory leak
-        sephiroth.remove_pipe(id_client, pout)
-        ws.close()
+            set_client_data(uid, msg)
+            ws.write_message( msg )
+        except websocket.WebSocketClosedError:
+            log.error('Client disconnected..')
+            ws.sephiroth_endpoint.remove_handler(uid, send_signal)
+    
+    def handle_fn(msg):
+        # A request comes with a client id we want to monitor
+        id_client = msg
+        ws.sephiroth_endpoint.add_handler(id_client, send_signal)
 
     if message == 'stop':
         ws.is_open = False
@@ -122,12 +112,13 @@ def handle_history(ws, message):
 
     ws.write_message( json.dumps(data) )
 
-def get_handler(handle_msg):
+def get_handler(handle_msg, sephiroth_endpoint=None):
     class SephirothWebSocket(websocket.WebSocketHandler):
 
         def __init__(self, application, request, **kwargs):
             super(SephirothWebSocket, self).__init__(application, request, **kwargs)
             self.is_open = False
+            self.sephiroth_endpoint = sephiroth_endpoint
 
         def open(self):
             self.is_open = True
@@ -143,9 +134,9 @@ def get_handler(handle_msg):
     return SephirothWebSocket
 
 
-def ws_start():
+def ws_start(sephiroth_endpoint):
     application = web.Application([
-        (r'/sephiroth', get_handler(handle_signal)),
+        (r'/sephiroth', get_handler(handle_signal, sephiroth_endpoint)),
         (r'/sephiroth_hr', get_handler(handle_heartrate)),
         (r'/sephiroth_hist', get_handler(handle_history)),
     ])

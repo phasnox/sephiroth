@@ -21,10 +21,10 @@ def send_data(client, signal):
 def start(host, port):
     # Use mac address as client id
     client_id = '000000000000000' #get_mac()
-    client    = sephiroth.Client(client_id)
+    client    = sephiroth.endpoint(client_id)
     while True:
         try:
-            client.connect(host=host, port=port)
+            client.connect(host, port)
             break
         except socket.error:
             print 'Attempt to reconnect in 3 seconds...'
@@ -46,5 +46,5 @@ if __name__ == '__main__':
 
     args = parser.parse_args()
     host = args.host or 'localhost'
-    port = args.port or sephiroth.DEFAULT_PORT
+    port = args.port or 7777
     start(host, port)
