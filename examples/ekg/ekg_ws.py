@@ -16,23 +16,9 @@ import sephiroth
 # Default variables
 WS_PORT   = 7771
 
-# For hr calculation
-CLIENT_DATA = {}
-CACHE_SIZE  = 1000000
-
 log = logging.getLogger('sephiroth_ws')
 
-def set_client_data(client_id, data):
-    datalist = CLIENT_DATA.get(client_id, None)
-    point    = ekg_helpers.get_values(data)
-    
-    if datalist:
-        datalist.append(point)
-    else:
-        CLIENT_DATA[client_id] = [point]
-
-def get_heart_rate(client_id):
-    data = CLIENT_DATA.get(client_id, None)
+def get_heart_rate(client_id, data):
     if data:
         try:
             # We need max length to be the number of samples in 6 seconds
@@ -54,7 +40,6 @@ def handle_signal(ws, message):
     def send_signal(conn, uid, msg):
         #if not ws.is_open: return
         try:
-            set_client_data(uid, msg)
             ws.write_message( msg )
         except websocket.WebSocketClosedError:
             log.error('Client disconnected..')
@@ -73,11 +58,12 @@ def handle_signal(ws, message):
 
 
 def handle_heartrate(ws, client_id):
-    ws.write_message( '%d' % get_heart_rate(client_id) )
+    data = ws.client_data.get(client_id, None)
+    ws.write_message( '%d' % get_heart_rate(client_id, data) )
 
 
-def get_data(client_id, from_point, n_records):
-    data = CLIENT_DATA.get(client_id, None)
+def get_data(client_data, client_id, from_point, n_records):
+    data = client_data.get(client_id, None)
     if data is None:
         data    = [ float(line.rstrip()) for line in open('data/' + client_id, 'read') ]
         max_val = max(data)
@@ -86,7 +72,7 @@ def get_data(client_id, from_point, n_records):
             'time': ekg_helpers.get_time_str(i, ref_time), 
             'value': x/max_val}
             for i, x in enumerate(data)]
-        CLIENT_DATA[client_id] = data
+        client_data[client_id] = data
 
     i = ekg_helpers.find_index(data, from_point)
     if n_records<0:
@@ -97,7 +83,7 @@ def get_data(client_id, from_point, n_records):
             i = 0
             n_records = top
 
-    return CLIENT_DATA[client_id][i:(i+n_records)]
+    return data[i:(i+n_records)]
         
 def handle_history(ws, message):
     message_split = message.split(';')
@@ -108,17 +94,18 @@ def handle_history(ws, message):
     client_id  = message_split[0]
     from_point = ekg_helpers.str_to_time(message_split[1])
     n_records  = int(message_split[2])
-    data       = get_data(client_id, from_point, n_records)
+    data       = get_data(ws.client_data, client_id, from_point, n_records)
 
     ws.write_message( json.dumps(data) )
 
-def get_handler(handle_msg, sephiroth_endpoint=None):
+def get_handler(handle_msg, sephiroth_endpoint=None, client_data=None):
     class SephirothWebSocket(websocket.WebSocketHandler):
 
         def __init__(self, application, request, **kwargs):
             super(SephirothWebSocket, self).__init__(application, request, **kwargs)
             self.is_open = False
             self.sephiroth_endpoint = sephiroth_endpoint
+            self.client_data = client_data
 
         def open(self):
             self.is_open = True
@@ -134,11 +121,11 @@ def get_handler(handle_msg, sephiroth_endpoint=None):
     return SephirothWebSocket
 
 
-def ws_start(sephiroth_endpoint):
+def ws_start(sephiroth_endpoint, client_data):
     application = web.Application([
-        (r'/sephiroth', get_handler(handle_signal, sephiroth_endpoint)),
-        (r'/sephiroth_hr', get_handler(handle_heartrate)),
-        (r'/sephiroth_hist', get_handler(handle_history)),
+        (r'/sephiroth', get_handler(handle_signal, sephiroth_endpoint=sephiroth_endpoint)),
+        (r'/sephiroth_hr', get_handler(handle_heartrate, client_data=client_data)),
+        (r'/sephiroth_hist', get_handler(handle_history, client_data=client_data)),
     ])
 
     http_server = httpserver.HTTPServer(application)

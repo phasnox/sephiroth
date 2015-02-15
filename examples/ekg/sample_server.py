@@ -1,20 +1,40 @@
 import sephiroth
 import ekg_ws
+import ekg_helpers
 import threading
 import os
 import argparse
 
+CLIENT_DATA = {}
+
+# TODO Find a way to get the call CLIENT_DATA[uid] out of this method
+def add_cache(conn, uid, msg):
+    data = CLIENT_DATA.get(uid, None)
+    point= ekg_helpers.get_values(msg)
+    if data is not None:
+       data.append(point)
+    else:
+        CLIENT_DATA[uid] = [point]
+
 def main(host, port):
-    sephiroth_endpoint   = sephiroth.endpoint('ekg_server')
-    thread_signal_server = threading.Thread(target=sephiroth_endpoint.bind, args=(host, port))
-    thread_signal_server.start()
+    try:
+        sephiroth_endpoint   = sephiroth.endpoint('ekg_server')
+        sephiroth_endpoint.add_handler('*', add_cache)
+        thread_signal_server = threading.Thread(target=sephiroth_endpoint.bind, args=(host, port))
+        thread_signal_server.start()
 
-    # Wait until sephiroth comes alive
-    while not sephiroth_endpoint.alive:
-        pass
+        # Wait until sephiroth comes alive
+        while not sephiroth_endpoint.alive:
+            pass
 
-    thread_websocket_server = threading.Thread(target=ekg_ws.ws_start, args=(sephiroth_endpoint, ))
-    thread_websocket_server.start()
+        thread_websocket_server = threading.Thread(target=ekg_ws.ws_start, args=(sephiroth_endpoint, CLIENT_DATA))
+        thread_websocket_server.start()
+        print 'Sephiroth awake..'
+        while 1:
+            pass
+    except KeyboardInterrupt:
+        print '\nSephiroth fainted..'
+        os._exit(0)
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
@@ -24,12 +44,4 @@ if __name__ == '__main__':
     args = parser.parse_args()
     host = args.host or ''
     port = args.port or 7777
-    try:
-        main(host, port)
-        
-        print 'Sephiroth awake..'
-        while 1:
-            pass
-    except KeyboardInterrupt:
-        print '\nSephiroth fainted..'
-        os._exit(0)
+    main(host, port)

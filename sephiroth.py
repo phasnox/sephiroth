@@ -2,10 +2,7 @@ import socket
 import select
 import errno
 import threading
-import SocketServer
-import os
 import logging
-import time
 
 log           = logging.getLogger('sephiroth')
 MSG_SEPARATOR = '\n'
@@ -46,7 +43,7 @@ class endpoint:
         self.uid       = uid
         self.alive     = False
         self.endpoints = []
-        self.handlers  = {}
+        self.handlers  = {'*': []}
         self.sock  = socket.socket(
             socket.AF_INET, socket.SOCK_STREAM)
         self.sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
@@ -61,17 +58,21 @@ class endpoint:
                 conn.close()
                 return
 
-            if not uid:
-                log.error('Empty response uid :(')
+            if not uid or uid=='*':
+                log.error('Wrong uid :(')
                 conn.close()
                 return
 
             self.endpoints.append(uid)
             conn.sendall(STATE.CONNECTED)
+            handlers        = self.handlers.get(uid, [])
+            global_handlers = self.handlers.get('*', [])
             while True:
                 msg = readall(conn)
                 if not msg: break
-                handlers = self.handlers.get(uid, None)
+                if global_handlers:
+                    for fn in global_handlers:
+                        fn(conn, uid, msg)
                 if handlers:
                     for fn in handlers:
                         fn(conn, uid, msg)
