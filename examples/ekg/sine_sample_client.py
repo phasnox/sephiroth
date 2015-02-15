@@ -5,22 +5,22 @@ import sephiroth
 import argparse
 import socket
 from datetime import datetime
+import random
 
 # This indicates how many times the signal is read
 READ_FREQUENCY = 50  # Frequency in Hz
 RFQ            = float(1)/float(READ_FREQUENCY) # In seconds
+random_number  = random.randint(1,10)
 
 def get_signal(t):
-    return pow(math.sin(5*t), 2)
+    return pow(math.sin(random_number*t), 2)
 
 def send_data(client, signal):
     data = '{time:%Y-%m-%dT%H:%M:%S.%fZ};{signal:07.2f}' \
             .format(time=datetime.now(), signal=signal)
     client.send(data)
 
-def start(host, port):
-    # Use mac address as client id
-    client_id = '000000000000000' #get_mac()
+def start(client_id, host, port):
     client    = sephiroth.endpoint(client_id)
     while True:
         try:
@@ -41,10 +41,12 @@ def start(host, port):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
+    parser.add_argument('-c', '--client', help='client id')
     parser.add_argument('-o', '--host', help='host name or ip address')
     parser.add_argument('-p', '--port', help='port number', type=int)
 
     args = parser.parse_args()
-    host = args.host or 'localhost'
-    port = args.port or 7777
-    start(host, port)
+    client_id = args.client or str(random_number)
+    host      = args.host or 'localhost'
+    port      = args.port or 7777
+    start(client_id, host, port)

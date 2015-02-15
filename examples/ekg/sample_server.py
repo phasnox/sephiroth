@@ -3,6 +3,7 @@ import ekg_ws
 import ekg_helpers
 import threading
 import os
+import time
 import argparse
 
 CLIENT_DATA = {}
@@ -31,7 +32,7 @@ def main(host, port):
         thread_websocket_server.start()
         print 'Sephiroth awake..'
         while 1:
-            pass
+            time.sleep(300)
     except KeyboardInterrupt:
         print '\nSephiroth fainted..'
         os._exit(0)

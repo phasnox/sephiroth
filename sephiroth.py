@@ -6,6 +6,7 @@ import logging
 
 log           = logging.getLogger('sephiroth')
 MSG_SEPARATOR = '\n'
+log.setLevel(logging.INFO)
 
 class EndpointExists(Exception):
     pass
@@ -54,6 +55,7 @@ class endpoint:
             # Check for uid
             uid = readall(conn)
             if uid in self.endpoints:
+                log.error('uid exists :(')
                 conn.sendall(STATE.ENDPOINT_EXISTS)
                 conn.close()
                 return
@@ -65,8 +67,10 @@ class endpoint:
 
             self.endpoints.append(uid)
             conn.sendall(STATE.CONNECTED)
-            handlers        = self.handlers.get(uid, [])
-            global_handlers = self.handlers.get('*', [])
+            
+            # TODO possible race condition with add_handler
+            handlers        = self.handlers.get(uid, None)
+            global_handlers = self.handlers.get('*')
             while True:
                 msg = readall(conn)
                 if not msg: break
@@ -76,6 +80,10 @@ class endpoint:
                 if handlers:
                     for fn in handlers:
                         fn(conn, uid, msg)
+                else:
+                    # This was set to avoid a possible race condition with
+                    # method add_handler
+                    handlers = self.handlers.get(uid, None)
 
             log.info('Removing %s' % uid)
             self.endpoints.remove(uid)
@@ -99,7 +107,7 @@ class endpoint:
 
     def connect(self, host, port):
         self.sock.connect((host, port))
-        self.sock.sendall(self.uid)
+        self.send(self.uid)
         response = readall(self.sock)
         if(response == STATE.CONNECTED):
             self.alive = True
@@ -109,8 +117,6 @@ class endpoint:
 
     def remove_handler(self, uid, handler):
         handlers = self.handlers.get(uid, None)
-        if handlers is None:
-            handlers = self.handlers[uid] = []
         handlers.remove(handler)
 
     def add_handler(self, uid, handler):

@@ -2,6 +2,7 @@ import threading
 import os
 import logging
 import json
+import time
 from collections import deque
 from datetime import datetime
 from tornado import websocket
@@ -17,7 +18,42 @@ import sephiroth
 WS_PORT   = 7771
 
 log = logging.getLogger('sephiroth_ws')
+log.setLevel(logging.INFO)
 
+# ----------------
+# Signal stuff
+# ----------------
+def handle_signal(ws, message):
+    
+    def send_signal(conn, uid, msg):
+        #if not ws.is_open: return
+        try:
+            ws.write_message( msg )
+        except websocket.WebSocketClosedError:
+            log.error('Client disconnected..')
+            ws.sephiroth_endpoint.remove_handler(uid, send_signal)
+        
+    def handle_fn(msg):
+        # A request comes with a client id we want to monitor
+        id_client = msg
+        ws.sephiroth_endpoint.add_handler(id_client, send_signal)
+        while ws.is_open:
+            time.sleep(15)
+
+        try:
+            ws.sephiroth_endpoint.remove_handler(id_client, send_signal)
+        except ValueError:
+            log.info('Clean up: send_signal already removed')
+
+    if message == 'stop':
+        ws.is_open = False
+    else:
+        t = threading.Thread(target=handle_fn, args=(message, ))
+        t.start()
+
+# -----------------
+# Heartrate stuff
+# -----------------
 def get_heart_rate(client_id, data):
     if data:
         try:
@@ -35,33 +71,13 @@ def get_heart_rate(client_id, data):
             return 60
     return 0
 
-def handle_signal(ws, message):
-    
-    def send_signal(conn, uid, msg):
-        #if not ws.is_open: return
-        try:
-            ws.write_message( msg )
-        except websocket.WebSocketClosedError:
-            log.error('Client disconnected..')
-            ws.sephiroth_endpoint.remove_handler(uid, send_signal)
-    
-    def handle_fn(msg):
-        # A request comes with a client id we want to monitor
-        id_client = msg
-        ws.sephiroth_endpoint.add_handler(id_client, send_signal)
-
-    if message == 'stop':
-        ws.is_open = False
-    else:
-        t = threading.Thread(target=handle_fn, args=(message, ))
-        t.start()
-
-
 def handle_heartrate(ws, client_id):
     data = ws.client_data.get(client_id, None)
     ws.write_message( '%d' % get_heart_rate(client_id, data) )
 
-
+# -----------------
+# History stuff
+# -----------------
 def get_data(client_data, client_id, from_point, n_records):
     data = client_data.get(client_id, None)
     if data is None:
@@ -98,6 +114,9 @@ def handle_history(ws, message):
 
     ws.write_message( json.dumps(data) )
 
+# -----------------
+# WebSocket stuff
+# -----------------
 def get_handler(handle_msg, sephiroth_endpoint=None, client_data=None):
     class SephirothWebSocket(websocket.WebSocketHandler):
 
