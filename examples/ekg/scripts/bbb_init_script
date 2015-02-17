@@ -1,0 +1,29 @@
+#!/bin/sh
+### BEGIN INIT INFO
+# Provides:          ekg_start
+# Required-Start:    $all
+# Required-Stop:     $all
+# Default-Start:     2 3 4 5
+# Default-Stop:      0 1 6
+# Short-Description: Start daemon at boot time
+# Description:       Enable service provided by daemon.
+### END INIT INFO
+
+case "$1" in
+  start)
+    EKG_SERVER=$(cat /root/ekg_server_host)
+    echo "Starting ekg client ..."
+    echo "Connecting to $EKG_SERVER..."
+    (cd /root/sephiroth && python client_bbb.py -o $EKG_SERVER)
+    ;;
+  stop)
+    echo "Stopping script blah"
+    pkill python
+    ;;
+  *)
+    echo "Usage: /etc/init.d/blah {start|stop}"
+    exit 1
+    ;;
+esac
+
+exit 0

@@ -112,7 +112,7 @@ gulp.task('watch', ['connect'], function () {
   ]).on('change', $.livereload.changed);
 
   // Watch for bbb client change
-  gulp.watch([
+  /*gulp.watch([
     '../client_bbb.py'
   ]).on('change', 
     function(){
@@ -128,7 +128,7 @@ gulp.task('watch', ['connect'], function () {
       child.stdout.on('data', logdata);
       child.stderr.on('data', logdata);
     });
-
+*/
   gulp.watch('app/styles/**/*.scss', ['styles']);
   gulp.watch('bower.json', ['wiredep']);
 });

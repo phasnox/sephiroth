@@ -19,7 +19,7 @@ def add_cache(conn, uid, msg):
 
 def main(host, port):
     try:
-        sephiroth_endpoint   = sephiroth.endpoint('ekg_server')
+        sephiroth_endpoint   = sephiroth.endpoint('ekg_server', timeout=5)
         sephiroth_endpoint.add_handler('*', add_cache)
         thread_signal_server = threading.Thread(target=sephiroth_endpoint.bind, args=(host, port))
         thread_signal_server.start()

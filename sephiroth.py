@@ -18,12 +18,12 @@ class STATE:
     CONNECTED       = '0'
     ENDPOINT_EXISTS = '1'
 
-def readall(sock):
+def readall(sock, timeout=None):
     sock.setblocking(0)
     msg = []
-    read_ready, _, _ = select.select([sock], [], [])
+    read_ready, _, _ = select.select([sock], [], [], timeout)
     if sock in read_ready:
-        while 1:
+        while True:
             try:
                 chunk = sock.recv(1)
                 if not chunk or chunk == MSG_SEPARATOR:
@@ -40,11 +40,12 @@ def readall(sock):
 class endpoint:
 
     ''' Endpoint class '''
-    def __init__(self, uid):
+    def __init__(self, uid, timeout=None):
         self.uid       = uid
         self.alive     = False
         self.endpoints = []
         self.handlers  = {'*': []}
+        self.timeout   = timeout
         self.sock  = socket.socket(
             socket.AF_INET, socket.SOCK_STREAM)
         self.sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
@@ -53,7 +54,7 @@ class endpoint:
         
         def handle_thread(conn, addr):
             # Check for uid
-            uid = readall(conn)
+            uid = readall(conn, self.timeout)
             if uid in self.endpoints:
                 log.error('uid exists :(')
                 conn.sendall(STATE.ENDPOINT_EXISTS)
@@ -65,14 +66,16 @@ class endpoint:
                 conn.close()
                 return
 
+            
             self.endpoints.append(uid)
             conn.sendall(STATE.CONNECTED)
-            
+            log.info('Client %s connected' % uid)
+
             # TODO possible race condition with add_handler
             handlers        = self.handlers.get(uid, None)
             global_handlers = self.handlers.get('*')
             while True:
-                msg = readall(conn)
+                msg = readall(conn, self.timeout)
                 if not msg: break
                 if global_handlers:
                     for fn in global_handlers:
@@ -108,7 +111,7 @@ class endpoint:
     def connect(self, host, port):
         self.sock.connect((host, port))
         self.send(self.uid)
-        response = readall(self.sock)
+        response = readall(self.sock, self.timeout)
         if(response == STATE.CONNECTED):
             self.alive = True
             return
