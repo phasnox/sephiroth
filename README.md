@@ -1,5 +1,23 @@
+#sephiroth
+**Messaging multiplexing library for python**
+
+Sephiroth is a library for simple message multiplexing. 
+It was designed for the construction of an EKG signal distribution server, as a graduation project for the Computer Science department of the ESPOL.
+
+The library defines an `endpoint` class, which instances can handle connections as client or server. Here is an example:
+
+```python
+import sephiroth
+
+def fn1(conn, uid, msg):
+    print('Message <%s> handled by fn1 from client <%s>')
+
+server = sephiroth.endpoint('Example server')
+server.bind('localhost', 7777)
+```
+
 ###Dependencies for running EKG example
- - python
+ - python 2.7.6+
  - node
  - npm
  - bower
@@ -13,11 +31,11 @@
  1. Install python and pip
  2. Download and install nodejs [here](http://nodejs.org/download/)
  3. Clone this repo 
-    `git clone https://github.com/phasnox/sephiroth.git`
+     `git clone https://github.com/phasnox/sephiroth.git`
  4. Checkout eksampling branch 
-    `cd sephiroth && git checkout eksampling`
+     `cd sephiroth && git checkout eksampling`
  5. If you are on Debian run 
-    `bash scripts/ekg_setup.sh`
+     `bash scripts/ekg_setup.sh`
  6. Install python dependencies
 
      ```bash
