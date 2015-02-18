@@ -42,11 +42,12 @@ You can find a more complex example inside the `examples/ekg` folder. This examp
 
 **Google Chrome on Android**
 
-    <img width="250" src="https://cloud.githubusercontent.com/assets/3498059/6234238/348d7ba6-b6a7-11e4-9f77-49aa2b4489a4.jpg">
+<img width="250" src="https://cloud.githubusercontent.com/assets/3498059/6234238/348d7ba6-b6a7-11e4-9f77-49aa2b4489a4.jpg">
+
 
 **Chrome on a desktop machine**
 
-    <img width="250" src="https://cloud.githubusercontent.com/assets/3498059/6234242/3b484e30-b6a7-11e4-9180-5f15b2b7c0d6.png">
+<img width="250" src="https://cloud.githubusercontent.com/assets/3498059/6234242/3b484e30-b6a7-11e4-9180-5f15b2b7c0d6.png">
 
 The signal is nothing more than a voltage, that is read in a micro computer(Beaglebone Black), which is then sent to the server using `sephiroth.endpoint` class on both sides. An instance of `sephiroth.endpoint` representing the server, is then passed to a thread where a WebSockets server executes. Each web client that connects to it, makes the WebSockets server add a handler for reading the signal and sending it back in realtime.
 
