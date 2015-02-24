@@ -2,9 +2,9 @@
 **Message multiplexing library for python**
 
 Sephiroth is a library for simple message multiplexing. 
-It was designed for the construction of an EKG realtime signal distribution server, as a graduation project for the Computer Science department of the ESPOL.
+It was designed for the construction of an EKG, realtime, signal distribution server, as a graduation project for the Computer Science department of the ESPOL.
 
-The library defines an `endpoint` class, which instances can handle connections as client or server. Here is an example:
+The library defines an `endpoint` class for transmitting data between two processes. Here is an example:
 
 **server.py**
 ```python
@@ -49,7 +49,10 @@ You can find a more complex example inside the `examples/ekg` folder. This examp
 
 <img width="250" src="https://cloud.githubusercontent.com/assets/3498059/6234242/3b484e30-b6a7-11e4-9180-5f15b2b7c0d6.png">
 
-The signal is nothing more than a voltage, that is read in a micro computer(Beaglebone Black), which is then sent to the server using `sephiroth.endpoint` class on both sides. An instance of `sephiroth.endpoint` representing the server, is then passed to a thread where a WebSockets server executes. Each web client that connects to it, makes the WebSockets server add a handler for reading the signal and sending it back in realtime.
+A python program running on a BeagleBone black, acting as the client, sends the voltage read every `20ms`. This values get distributed among the Web Clients connected in real time using WebSockets.
+
+A handler is added dynamically each time a Web Client makes a request for tracking a signal with a particular `unique id`.
+
 
 ###Dependencies for running EKG example
  - python 2.7.6+
