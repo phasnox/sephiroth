@@ -8,6 +8,10 @@ log           = logging.getLogger('sephiroth')
 MSG_SEPARATOR = '\n'
 log.setLevel(logging.INFO)
 
+# Exceptions for flow control
+class WrongUID(Exception):
+    pass
+
 class EndpointExists(Exception):
     pass
 
@@ -17,7 +21,9 @@ class SephirothReadError(Exception):
 class STATE:
     CONNECTED       = '0'
     ENDPOINT_EXISTS = '1'
+    WRONG_UID       = '2'
 
+# Read all method to read from socket
 def readall(sock, timeout=None):
     sock.setblocking(0)
     msg = []
@@ -36,7 +42,8 @@ def readall(sock, timeout=None):
                 break
     return ''.join(msg)
 
-
+# Endpoint class
+# ---------------
 class endpoint:
 
     ''' Endpoint class '''
@@ -63,6 +70,7 @@ class endpoint:
 
             if not uid or uid=='*':
                 log.error('Wrong uid :(')
+                conn.sendall(STATE.WRONG_UID)
                 conn.close()
                 return
 
@@ -71,7 +79,6 @@ class endpoint:
             conn.sendall(STATE.CONNECTED)
             log.info('Client %s connected' % uid)
 
-            # TODO possible race condition with add_handler
             handlers        = self.handlers.get(uid, None)
             global_handlers = self.handlers.get('*')
             while True:
@@ -84,7 +91,7 @@ class endpoint:
                     for fn in handlers:
                         fn(conn, uid, msg)
                 else:
-                    # This was set to avoid a possible race condition with
+                    # This was added to avoid a possible race condition with
                     # method add_handler
                     handlers = self.handlers.get(uid, None)
 
@@ -102,7 +109,7 @@ class endpoint:
         self.sock.listen(1)
         self.alive = True
 
-        while 1:
+        while True:
             conn, addr = self.sock.accept()
             self.__handle_conn(conn, addr)
 
@@ -117,6 +124,8 @@ class endpoint:
             return
         if(response == STATE.ENDPOINT_EXISTS):
             raise EndpointExists
+        if(response == STATE.WRONG_UID):
+            raise WrongUID
 
     def remove_handler(self, uid, handler):
         handlers = self.handlers.get(uid, None)

@@ -78,10 +78,13 @@ def handle_heartrate(ws, client_id):
 # -----------------
 # History stuff
 # -----------------
+import os
 def get_data(client_data, client_id, from_point, n_records):
     data = client_data.get(client_id, None)
     if data is None:
-        data    = [ float(line.rstrip()) for line in open('data/' + client_id, 'read') ]
+        sdir    = os.path.dirname(os.path.realpath(__file__))
+        filepath= os.path.join(sdir, 'data/' + client_id)
+        data    = [ float(line.rstrip()) for line in open(filepath, 'read') ]
         max_val = max(data)
         ref_time= datetime.now()
         data    = [{
